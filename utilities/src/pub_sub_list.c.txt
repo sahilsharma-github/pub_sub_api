@@ -1,0 +1,207 @@
+#include "../h/pub_sub_list.h"
+#include "string.h"
+#include "stdlib.h"
+#include "stdio.h"
+void pub_sub_list_init( pub_sub_list * l )
+{
+    l->list_size = 0;
+    l->head = NULL;
+    l->tail = NULL;
+}
+void pub_sub_cb_list_init( pub_sub_cb_list * l )
+{
+    l->list_size = 0;
+    l->head = NULL;
+    l->tail = NULL;
+}
+
+void pub_sub_cb_list_free( pub_sub_cb_list * l)
+{
+    pub_sub_cb_node * node;
+    while( l->head != NULL )
+    {
+        node = l->head;
+        l->head = node->next;
+        //free(node->data);
+        free(node);
+    }
+}
+
+void pub_sub_list_free( pub_sub_list* l)
+{
+    pub_sub_generic_node * node;
+    while( l->head != NULL )
+    {
+        node = l->head;
+        l->head = node->next;
+        free(node->data);
+        free(node);
+    }
+}
+void pub_sub_cb_list_append(pub_sub_cb_list * l, pub_sub_cb_pair data)
+{
+    pub_sub_cb_node * node = l->head;
+    //printf("l->list_size: %d\n", l->list_size);
+    if( node != NULL)
+    {
+        if( cb_pair_comparator( &(node->data), data.key, data.cb ))
+            return;
+    }
+    while( node != l->tail)
+    {
+        if( cb_pair_comparator( &(node->data), data.key, data.cb ))
+        {
+            return;
+        }
+        node = node->next;
+    }
+
+    node  = malloc(sizeof(pub_sub_cb_node));
+    node->next = NULL;
+    node->data.cb = data.cb;
+    strcpy(node->data.key,  data.key);
+    if( l->list_size == 0)
+    {
+        l->head = node;
+        l->tail = node;
+    }
+    else
+    {
+        l->tail->next = node;
+        l->tail = node;
+    }
+    ++l->list_size;
+}
+void pub_sub_list_append(pub_sub_list * l, void * data, int elem_size)
+{
+// same changes in cb append too
+// needs changes, last element may not be compared against
+    pub_sub_generic_node * node = l->head;
+    if( node != NULL)
+    {
+        if( string_pair_comparator( (pub_sub_pair*)node->data, ((pub_sub_pair*)data)->key, ((pub_sub_pair*)data)->value ))
+            return;
+    }
+    while( node != l->tail)
+    {
+        if( string_pair_comparator( (pub_sub_pair*)node->data, ((pub_sub_pair*)data)->key, ((pub_sub_pair*)data)->value ))
+        {
+            return;       
+        }
+        node = node->next;
+    }
+    node = malloc(sizeof(pub_sub_generic_node));
+    node->next = NULL;
+    node->data = malloc(elem_size);
+    memcpy(node->data, data, elem_size);
+    if( l->list_size == 0)
+    {
+        l->head = node;
+        l->tail = node;
+    }
+    else
+    {
+        l->tail->next = node;
+        l->tail = node;
+    }
+    ++l->list_size;
+}
+Result pub_sub_list_push(pub_sub_list * l, void * data, int elem_size)
+{
+    printf("Trying to push %s\n", (char*)data);
+    pub_sub_generic_node * node = l->head;
+    if( node != NULL)
+    {
+        printf("Data is %s\n", (char*)data);/*
+        for(int i = 0; i < strlen((char*)data) ;++i)
+            printf("%c", ((char*)data)[i]);
+        printf("\n");
+        for(int i = 0 ;i < strlen((char*)data) ;++i)
+            printf("%d ", ((char*)data)[i]);*/
+        printf("node->Data is %s\n", (char*)node->data);/*
+        for(int i = 0 ;i < strlen((char*)node->data) ;++i)
+            printf("%c", ((char*)node->data)[i]);
+        printf("\n");
+        for(int i = 0 ;i < strlen((char*)node->data) ;++i)
+            printf("%d ", ((char*)node->data)[i]);
+        printf("\n");*/
+        if( strcmp((char*)data, (char*)node->data) == 0)
+        {
+            printf("already similar data\n");
+            return FAILURE;
+        }
+    }
+    while( node != l->tail)
+    {
+        if( strcmp((char*)data, (char*)node->data) == 0)
+        {
+            printf("already similar data in the list\n");
+            return FAILURE;
+        }
+        node = node->next;
+    }
+    //printf("Element will be added\n");
+    node = malloc(sizeof(pub_sub_generic_node));
+    node->next = NULL;
+    node->data = malloc(elem_size);
+    memcpy(node->data, data, elem_size);
+    if( l->list_size == 0)
+    {
+        l->head = node;
+        l->tail = node;
+    }
+    else
+    {
+        l->tail->next = node;
+        l->tail = node;
+    }
+    ++l->list_size;
+    return SUCCESS;
+}
+
+int get_pub_sub_cb_list_size(pub_sub_cb_list * l)
+{
+  return l->list_size;
+}
+int get_pub_sub_list_size(pub_sub_list * l)
+{
+  return l->list_size;
+}
+
+void * get_list_front(pub_sub_list l1 )
+{
+    void * elem = l1.head->data;
+    return elem;
+}
+
+void get_pub_sub_cb_list( pub_sub_cb_list * l1, char * key, cb_comparator fptr, pub_sub_cb_list * l) 
+{
+    pub_sub_cb_node * node = l1->head;
+    while( node != NULL )
+    {
+        //printf("Here node->data.key: %s\n", node->data.key);
+        pub_sub_callback val;
+        if( fptr( &(node->data), key, val ))
+            pub_sub_cb_list_append(l, node->data);
+        node = node->next;
+    }
+    if( l != NULL)
+        printf("pub_sub_cb_list size with key %s is %d\n", key, l->list_size);
+
+}
+void get_pub_sub_string_list( pub_sub_list * l1, char * key, string_comparator fptr, pub_sub_list * l)              // returns list containing those elements that match the key
+{
+    pub_sub_generic_node * node = l1->head; 
+    while( node != NULL )
+    {
+        char val[PUB_SUB_MAX_STR_LEN];
+        if( fptr( node->data, key, val ))
+        {
+            pub_sub_list_append(l, val, strlen(val)+1);
+        }
+        node = node->next;
+        
+    }
+    if( l != NULL)
+        printf("pub_sub_string_list size with key %s is %d\n", key, l->list_size);
+}

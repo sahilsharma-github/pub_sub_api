@@ -1,0 +1,190 @@
+#include "../h/pub_sub_hash_container.h"
+#include "../h/pub_sub_list.h"
+#include<string.h>
+#include<stdlib.h>
+#include<stdio.h>
+int hash_string( char * key)
+{
+    int sum = 0;
+    for( int i = 0 ; i < strlen(key) ; ++i)
+        sum += key[i];
+    return sum%PUB_SUB_MAX_BUCKETS;
+    
+}
+
+bool cb_pair_comparator( pub_sub_cb_pair * p, char * key, pub_sub_callback cb)
+{
+    //printf("In cb pair comparator. p->key: %s and key: %s\n", p->key, key);
+    if( strcmp( p->key, key) == 0)
+    {
+        //printf("Key matched! Adding\n");
+        cb = p->cb;
+        return true;
+    }
+    else 
+        return false;
+}
+//bool string_pair_comparator( pub_sub_pair * p, char * key, int * value)
+bool string_pair_comparator( pub_sub_pair * p, char * key, char * value)
+{
+    if( strcmp( p->key, key) == 0)
+    {
+        //printf("Key matched! Adding\n");
+        strcpy(value, p->value);
+        return true;
+    }
+    else
+        return false;
+}
+
+void pub_sub_cb_hash_insert( pub_sub_cb_map * map, pub_sub_callback cb, int n_keys, char (*keyargs)[1024])
+{
+    size_t sz = 1;
+    for( int i = 0 ; i < n_keys ; ++i )
+    {
+        sz += strlen(keyargs[i]);
+    }
+    char * consolidated_key = (char*)malloc(sz);
+    //char * consolidated_key = (char*)malloc(n_keys*MAX_STR_LEN);
+    int j = 0;
+    int k = 0;
+    for( int i = 0 ; i < n_keys ; ++i)
+    {   char * field = keyargs[i];
+        while( field[k] != '\0')
+        {
+            consolidated_key[j] = field[k];
+            ++j; ++k;
+        }
+        k = 0;
+    }
+    consolidated_key[j] = '\0';
+    //        printf("Consol key: %s\n", consolidated_key);
+
+    int hash = hash_string(consolidated_key);
+    //printf("Returned hash is: %d\n", hash);
+    pub_sub_cb_pair data;
+    strcpy(data.key, consolidated_key);
+    data.cb = cb;
+    //pub_sub_cb_list_init(&(map->hashtable[hash]));
+    pub_sub_cb_list_append(&(map->hashtable[hash]), data );
+    //pub_sub_cb_list_append(&(map->hashtable[hash]), data, sizeof(pub_sub_cb_pair));
+    free(consolidated_key);
+}
+void pub_sub_string_hash_insert( pub_sub_string_map * map, int val, int n_keys, char (*keyargs)[1024])
+{
+    size_t sz = 1;
+    for( int i = 0 ; i < n_keys ; ++i )
+    {
+        sz += strlen(keyargs[i]);
+    }
+    char * consolidated_key = (char*)malloc(sz);
+
+    //char * consolidated_key = (char*)malloc(n_keys*MAX_STR_LEN);
+    int j = 0;
+    //printf("n_keys: %d\n", n_keys);
+    int k = 0;
+    for( int i = 0 ; i < n_keys ; ++i)
+    {   char * field = keyargs[i];
+        while( field[k] != '\0')
+        {
+            //printf("Iterations: %d\n", ++k);
+            consolidated_key[j] = field[k];
+            ++j; ++k;
+        }
+        k = 0;
+    }
+    consolidated_key[j] = '\0';
+     //       printf("Consol key: %s\n", consolidated_key);
+    
+    int hash = hash_string(consolidated_key);
+    //printf("Returned hash is: %d\n", hash);
+    pub_sub_pair data;
+    strcpy(data.key, consolidated_key);
+    char val_str[1024];
+    sprintf(val_str,"%d", val);
+    strcpy(data.value, val_str);
+    pub_sub_list_append(&(map->hashtable[hash]), &data, sizeof(pub_sub_pair));
+    free(consolidated_key);
+}
+//when build the maps, avoid duplicates for same key. It cant be a multimap
+//void pub_sub_cb_hash_search( pub_sub_cb_map * map, int n_keys, char (*keyargs)[1024], pub_sub_cb_list * l)
+void pub_sub_cb_hash_search( pub_sub_cb_map * map, int n_keys, char ** keyargs, pub_sub_cb_list * l)
+{
+    if( map == NULL )
+        return;
+    size_t sz = 1;
+    for( int i = 0 ; i < n_keys ; ++i )
+    {
+        sz += strlen(keyargs[i]);
+    }
+    char * consolidated_key = (char*)malloc(sz);
+    int j = 0;
+    int k = 0;
+    for( int i = 0 ; i < n_keys ; ++i)
+    {   
+        //char * field = keyargs[i];
+        while( keyargs[i][k] != '\0')
+        {
+            consolidated_key[j] = keyargs[i][k];
+            ++j; ++k;
+        }
+        k = 0;
+    }
+    consolidated_key[j] = '\0';
+    //        printf("Consol key: %s\n", consolidated_key);
+    int hash = hash_string(consolidated_key);
+    //printf("Returned hash in search is: %d\n", hash);
+   int list_sz = get_pub_sub_cb_list_size(&(map->hashtable[hash]));
+    int lll;
+    if( list_sz == 0)
+        lll = 0;
+        //printf("No elements in this bucket\n");
+    else if(  list_sz > 0 )
+    {
+        get_pub_sub_cb_list(&(map->hashtable[hash]), consolidated_key, &cb_pair_comparator, l);
+    }
+    free(consolidated_key);
+
+}
+void pub_sub_string_hash_search( pub_sub_string_map * map, int n_keys, char ** keyargs, pub_sub_list * l)
+{
+    if( map == NULL )
+        return;
+    size_t sz = 1;
+    for( int i = 0 ; i < n_keys ; ++i )
+    {
+        sz += strlen(keyargs[i]);
+    }
+    char * consolidated_key = (char*)malloc(sz);
+    int j = 0;
+    int k = 0;
+    //char * field;
+    for( int i = 0 ; i < n_keys ; ++i)
+    {   
+        //field = keyargs[i];
+        while( keyargs[i][k] != '\0')
+        {
+            consolidated_key[j] = keyargs[i][k];
+            ++j; ++k;
+        }
+        k = 0;
+    }
+    consolidated_key[j] = '\0';
+    int hash = hash_string(consolidated_key);
+    //printf("Returned hash in search is: %d\n", hash);
+    int list_sz = get_pub_sub_list_size(&(map->hashtable[hash]));
+    //printf("list_sz: %d\n", list_sz);
+    int lll;
+    if( list_sz == 0)
+        lll =0;
+        //printf("No elements in this bucket\n");
+    else if(  list_sz > 0 )
+    {
+        get_pub_sub_string_list(&(map->hashtable[hash]), consolidated_key, &string_pair_comparator, l);      
+    }
+    free(consolidated_key);
+}
+
+void hash_delete( pub_sub_string_map map, int val, int num_keys, ...)
+{
+}

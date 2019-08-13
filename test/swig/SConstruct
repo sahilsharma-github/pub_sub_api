@@ -1,0 +1,22 @@
+import os
+import SCons
+
+env = Environment(CXX = '/usr/bin/gcc-4.8')
+env.Append(CCFLAGS = '-w -fPIC -std=gnu99 -I/usr/include/python2.7')
+env['STATIC_AND_SHARED_OBJECTS_ARE_THE_SAME']=1
+
+swig_dir = '/root/Sahil/temp/test/swig/'
+header_dir = '/root/Sahil/temp/h/'
+src_dir = '/root/Sahil/temp/src/'
+util_dir_header = '/root/Sahil/temp/utilities/h'
+util_dir_src = '/root/Sahil/temp/utilities/src'
+
+env.Repository(swig_dir)
+env.Repository(header_dir)
+env.Repository(src_dir)
+env.Repository(util_dir_header)
+env.Repository(util_dir_src)
+
+pub_sub_list = Glob(src_dir+'*.c')+env.Object('pub_sub_hash_container.c')+env.Object('pub_sub_list.c')+env.Object('pub_sub_queue.c')
+pub_sub_list.append(swig_dir+'pub_sub_api_wrap.c')
+env.SharedLibrary('_pub_sub_api.so', pub_sub_list)

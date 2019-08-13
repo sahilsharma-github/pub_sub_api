@@ -1,0 +1,138 @@
+#include "../h/pub_sub_queue.h"
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
+void push(generic_msg msg, pub_sub_queue * q)
+{
+    //printf("pushing element\n");
+    msg_node * new_node = (msg_node*)malloc(sizeof(msg_node));
+    if( new_node )
+    {
+        new_node->msg_data = msg;
+        new_node->next = q->rear;
+        if( q->rear != NULL )
+            q->rear->prev = new_node;
+        new_node->prev = NULL;
+        q->rear = new_node;
+        if( q->front == NULL )
+            q->front = new_node;
+    }
+}
+
+
+
+generic_msg* pop( pub_sub_queue * q)
+{
+    //printf("popping element\n");
+    if( q == NULL )
+        return NULL;
+    generic_msg * msg;
+    msg_node *node = q->front;
+    if( node == NULL)
+    {
+//        printf("returning NULL\n");
+        return NULL;
+    }
+    msg = (generic_msg*)malloc(sizeof(node->msg_data));
+    *msg = node->msg_data;
+    q->front = node->prev;
+    if( q->front == NULL)
+        q->rear = NULL;
+    free(node);
+    return msg; 
+}
+//void q_push(generic_msg * msg, pub_sub_generic_queue * q, int fd)
+void q_push(char * buf,pub_sub_generic_queue * q, int fd)
+{
+    //static int count = 0;
+    //++count;
+    
+    //printf("push_count: %d\n", count);
+    /*if( q->rear!= NULL)
+    printf("q->rear->prev: %p\n", q->rear->prev);
+    printf("q->prev: %p\n", q->front);
+   */ uint_16 sz = get_msg_size(buf, 0);
+    pub_sub_queue_node * new_node = (pub_sub_queue_node*)malloc(sizeof(pub_sub_queue_node));
+    //printf("new_node: %p\n", new_node);
+    if( new_node )
+    {
+        new_node->data = malloc(sz);
+        memcpy(new_node->data, buf, sz);
+        //printf("Copying data\n");
+        //for( int i = 0 ; i < sz ; ++i)
+        //    printf("new_node->data at %d is %c and %d\n", i, ((char*)new_node->data)[i], ((char*)new_node->data)[i]);
+        //new_node->message_type = msg->hdr.message_type;
+        //new_node->message_sub_type = msg->hdr.message_sub_type;
+        new_node->fd = fd;
+        //new_node->msg_data = msg;
+        new_node->next = q->rear;
+        if( q->rear != NULL )
+            q->rear->prev = new_node;
+        new_node->prev = NULL;
+        q->rear = new_node;
+        if( q->front == NULL )
+            q->front = new_node;
+            //printf("q->front: %p\n", q->front);
+            //printf("q->front->prev: %p\n", q->front->prev);
+    }
+    /*if( q->front == NULL)
+    {
+        printf("q->front was made NULL here in push\n");
+        printf("Program exiting while count was %d\n", count);
+         exit(1);
+    }
+    if( q->front->prev == NULL)
+    {
+        if(count > 1){
+        printf("q->front->prev was made NULL here in push\n");
+        printf("Program exiting while count was %d\n", count);
+         exit(1);}
+    }*/
+
+
+}
+
+pub_sub_queue_node * q_pop(pub_sub_generic_queue * q)
+{
+    //static int count = 0;
+    if( q == NULL )
+        return NULL;
+    pub_sub_queue_node * node = q->front;
+    /*if(q->front != NULL)
+        printf("q->front->prev: %p\n", q->front->prev);
+        printf("q->front: %p\n", q->front);
+     printf("node: %p\n", node);
+    if(node == NULL)
+    printf("Node is NULL\n");
+    else
+        printf("node->prev: %p\n", node->prev);*/
+    if( node == NULL )
+    {
+    //    printf("returning NULL\n");
+        return NULL;
+    }
+    /*pub_sub_queue_node * ret_node = (pub_sub_queue_node*)malloc(sizeof(pub_sub_queue_node));
+    ret_node->data = (generic_msg*)sizeof(generic_msg);
+    memcpy(ret_node->data, node->data, sizeof(generic_msg));
+    ret_node->fd = node->fd;
+    */
+    //++count;
+    //printf("pop count in queue: %d\n", count);
+    //printf("node->prev: %p\n", node->prev);
+    q->front = node->prev;
+    if( q->front != NULL)
+        q->front->next = NULL;
+    node->next = NULL;
+    node->prev = NULL;
+    if( q->front == NULL)
+        q->rear = NULL;
+    //free(node->data);
+    //free(node);
+    /*if( q->front == NULL)
+    {
+        printf("q->front was made NULL here\n"); 
+        printf("Program exiting while count was %d\n", count);
+         exit(1);
+    }*/
+    return node;
+}
